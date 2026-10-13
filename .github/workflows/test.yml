@@ -1,0 +1,27 @@
+name: Tests
+on: [push, pull_request]
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dar
+          POSTGRES_PASSWORD: ci-only-test-password
+          POSTGRES_DB: dar
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U dar" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DEBUG: "1"
+      DATABASE_URL: postgresql://dar:ci-only-test-password@localhost:5432/dar
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python manage.py check
+      - run: python manage.py makemigrations --check --dry-run
+      - run: python manage.py test shop.tests --noinput
+      - run: python manage.py collectstatic --noinput

@@ -1,0 +1,5 @@
+{$DOMAIN} {
+    reverse_proxy web:80
+    encode zstd gzip
+    header X-Content-Type-Options nosniff
+}
