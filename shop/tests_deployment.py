@@ -53,7 +53,7 @@ class DeploymentTests(TestCase):
             from django.test import RequestFactory
             filename=category.image.name.split('/')[-1]
             r=public_upload(RequestFactory().get('/'),filename)
-            self.assertEqual(r.status_code,200);self.assertEqual(r['Content-Type'],'image/png');r.close()
+            self.assertEqual(r.status_code,200);self.assertEqual(r['Content-Type'],'image/png');r.file_to_stream.close()  # RequestFactory does not run the HTTP request lifecycle.
             from django.http import Http404
             for name in ['../private/custom/photo.png','bad.html','missing.png','..']:
                 with self.assertRaises(Http404): public_upload(RequestFactory().get('/'),name)
