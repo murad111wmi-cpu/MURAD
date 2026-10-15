@@ -26,13 +26,19 @@ class CheckoutForm(forms.Form):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
         s=StoreSettings.get()
+        self.store_settings=s
         self.fields['fulfillment'].queryset=FulfillmentMethod.objects.filter(active=True)
         self.fields['zone'].queryset=DeliveryZone.objects.filter(active=True)
         self.fields['branch'].queryset=Branch.objects.filter(active=True)
         for name in ['address','notes']:
             mode=getattr(s,f'{name}_mode')
             self.fields[name].required=mode=='required'
-            if mode=='hidden': self.fields[name].widget=forms.HiddenInput()
+            if mode=='hidden':
+                if name=='address' and self.fields['fulfillment'].queryset.filter(kind='delivery').exists():
+                    self.fields[name].widget.attrs['data-pickup-hidden']='1'
+                    self.fields[name].help_text='العنوان مطلوب للتوصيل فقط / Address required for delivery only'
+                else:
+                    self.fields[name].widget=forms.HiddenInput()
     def clean_phone(self):
         phone=re.sub(r'[\s()-]','',self.cleaned_data['phone'])
         if not re.fullmatch(r'\+?[0-9]{7,15}',phone): raise forms.ValidationError('أدخل رقم هاتف صحيحًا مع رمز الدولة')
@@ -46,7 +52,9 @@ class CheckoutForm(forms.Form):
         if m and m.kind=='delivery':
             if not c.get('zone'): self.add_error('zone','اختر منطقة التوصيل')
             if not c.get('address'): self.add_error('address','أدخل عنوان التوصيل')
-        if m and m.kind=='pickup' and not c.get('branch'): self.add_error('branch','اختر فرع الاستلام')
+        if m and m.kind=='pickup':
+            if not c.get('branch'): self.add_error('branch','اختر فرع الاستلام')
+            if self.store_settings.address_mode=='hidden': c['address']=''
         return c
 
 class MultipleInput(forms.ClearableFileInput): allow_multiple_selected=True

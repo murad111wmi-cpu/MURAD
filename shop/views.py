@@ -243,7 +243,10 @@ def work_detail(request,pk):
             elif action=='assign':
                 if not is_admin(request.user): raise PermissionDenied()
                 assignee=request.POST.get('assignee')
-                user=get_object_or_404(User,pk=assignee,profile__active=True,is_active=True) if assignee else None
+                try:
+                    user=User.objects.get(pk=assignee,profile__active=True,is_active=True) if assignee else None
+                except (User.DoesNotExist,ValueError,TypeError):
+                    raise ValidationError('اختر عاملًا فعالًا من القائمة')
                 order.assigned_to=user; order.save(update_fields=['assigned_to','updated_at'])
             else: raise ValidationError('عملية غير صالحة')
         except ValidationError as e: messages.error(request,str(e))

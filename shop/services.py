@@ -120,7 +120,7 @@ def change_status(user,order_id,target_id,expected):
     order=worker_orders(user).select_for_update(of=('self',)).get(pk=order_id)
     if str(order.status_id)!=str(expected): raise ValidationError('حدث تعديل آخر؛ حدّث الصفحة أولًا')
     try: target=OrderStatus.objects.get(pk=target_id,active=True)
-    except OrderStatus.DoesNotExist: raise ValidationError('الحالة غير متاحة')
+    except (OrderStatus.DoesNotExist, ValueError, TypeError): raise ValidationError('الحالة غير متاحة')
     workflow=list(OrderStatus.objects.filter(active=True,cancelled=False).values_list('pk',flat=True))
     old_index=workflow.index(order.status_id) if order.status_id in workflow else -1
     new_index=workflow.index(target.pk) if target.pk in workflow else -1

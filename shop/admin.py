@@ -116,6 +116,7 @@ class SettingsForm(forms.ModelForm):
     currency=forms.ChoiceField(label='العملة الأساسية',choices=[('العملات المفضلة',[(c,c) for c in PREFERRED]),('جميع العملات',[(c,c) for c in CURRENCIES])],help_text='تغيير العملة لا يحول الأسعار. حدّث أسعار المنتجات والتوصيل بعد التغيير. الطلبات القديمة تحتفظ بعملتها.')
     class Meta:
         model=StoreSettings; fields='__all__'
+        help_texts={'address_mode':'الإخفاء يطبق على الاستلام من الفرع. يظهر العنوان ويُطلب عند اختيار التوصيل.'}
         widgets={f:forms.TextInput(attrs={'type':'color'}) for f in ['primary_color','secondary_color','background_color','text_color','accent_color','header_color','footer_color','button_color']}
     class Media: js=['shop/admin.js']; css={'all':['shop/admin.css']}
 

@@ -254,6 +254,35 @@ class StoreTests(TestCase):
         self.product.price=Decimal('999999999.999');self.product.save()
         with self.assertRaises(ValidationError): build_lines(self.raw_cart())
 
+    def test_delivery_address_remains_visible_when_hidden_for_pickup(self):
+        from .forms import CheckoutForm
+        settings=StoreSettings.get();settings.address_mode='hidden';settings.save()
+        form=CheckoutForm()
+        self.assertFalse(form.fields['address'].widget.is_hidden)
+        self.assertContains(self.client.get('/products/'),'طاولة بلوط')
+        data={'name':'زبون','phone':'+962790000000','fulfillment':self.delivery.pk,'zone':self.zone.pk,'address':'عنوان توصيل','quote':signed_quote(self.raw_cart()),'request_key':str(uuid.uuid4())}
+        bound=CheckoutForm(data)
+        self.assertTrue(bound.is_valid(),bound.errors)
+        order,_=place_order(self.raw_cart(),bound.cleaned_data,bound.cleaned_data['request_key'],bound.cleaned_data['quote'])
+        self.assertEqual(order.address,'عنوان توصيل')
+    def test_hidden_pickup_address_is_not_stored(self):
+        from .forms import CheckoutForm
+        settings=StoreSettings.get();settings.address_mode='hidden';settings.save()
+        data={'name':'زبون','phone':'+962790000000','fulfillment':self.pickup.pk,'branch':self.branch.pk,'address':'غير مطلوب للاستلام','quote':signed_quote(self.raw_cart()),'request_key':str(uuid.uuid4())}
+        bound=CheckoutForm(data)
+        self.assertTrue(bound.is_valid(),bound.errors)
+        self.assertEqual(bound.cleaned_data['address'],'')
+    def test_bad_status_input_does_not_crash_worker_page(self):
+        order,_=self.make_order();status=order.status_id;self.login_worker()
+        response=self.client.post(reverse('work_detail',args=[order.pk]),{'action':'status','status':'invalid','expected':status})
+        self.assertEqual(response.status_code,302)
+        order.refresh_from_db();self.assertEqual(order.status_id,status)
+    def test_bad_worker_assignment_does_not_crash_admin_page(self):
+        order,_=self.make_order();self.client.force_login(self.admin)
+        response=self.client.post(reverse('admin_work_detail',args=[order.pk]),{'action':'assign','assignee':'invalid'})
+        self.assertEqual(response.status_code,302)
+        order.refresh_from_db();self.assertIsNone(order.assigned_to)
+
 from django.test import TransactionTestCase
 from django.db import connection,connections,close_old_connections
 import unittest
