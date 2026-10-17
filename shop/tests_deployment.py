@@ -63,3 +63,33 @@ class DeploymentTests(TestCase):
         from django.http import Http404
         from django.test import RequestFactory
         with self.assertRaises(Http404): public_upload(RequestFactory().get('/'),'a'*32+'.png')
+
+
+from django.test import SimpleTestCase
+from django.core.checks.security.base import check_secret_key
+from config.key_material import configured_secret_key
+
+class DeploymentKeyTests(SimpleTestCase):
+    def test_render_parts_pass_django_security_check(self):
+        environment={'DJANGO_SECRET_KEY':'0123456789abcdef'*2,'DJANGO_SECRET_KEY_EXTRA':'fedcba9876543210'*2}
+        key=configured_secret_key(environment)
+        with override_settings(SECRET_KEY=key):
+            self.assertEqual(check_secret_key(None),[])
+        self.assertEqual(key,configured_secret_key(dict(environment)))
+    def test_short_primary_without_extra_still_fails_security_check(self):
+        key=configured_secret_key({'DJANGO_SECRET_KEY':'0123456789abcdef'*2})
+        with override_settings(SECRET_KEY=key):
+            self.assertIn('security.W009',[warning.id for warning in check_secret_key(None)])
+    def test_single_long_key_is_preserved(self):
+        primary='test-only-long-key-with-diverse-characters-'+'0123456789abcdef'*4
+        self.assertEqual(configured_secret_key({'DJANGO_SECRET_KEY':primary}),primary)
+    def test_missing_primary_is_not_replaced_by_extra(self):
+        self.assertIsNone(configured_secret_key({'DJANGO_SECRET_KEY_EXTRA':'test-only-extra'*5}))
+    def test_low_diversity_key_is_not_padded_or_hashed_to_hide_warning(self):
+        key=configured_secret_key({'DJANGO_SECRET_KEY':'a'*32,'DJANGO_SECRET_KEY_EXTRA':'a'*32})
+        with override_settings(SECRET_KEY=key):
+            self.assertIn('security.W009',[warning.id for warning in check_secret_key(None)])
+    def test_insecure_django_prefix_is_not_hidden(self):
+        key=configured_secret_key({'DJANGO_SECRET_KEY':'django-insecure-'+'0123456789abcdef'*4,'DJANGO_SECRET_KEY_EXTRA':'0123456789abcdef'*2})
+        with override_settings(SECRET_KEY=key):
+            self.assertIn('security.W009',[warning.id for warning in check_secret_key(None)])

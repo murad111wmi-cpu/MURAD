@@ -20,7 +20,10 @@ services:
         value: "0"
       - key: TRUST_PROXY
         value: "1"
+      # Independent persistent parts produce a sufficiently long random Django key.
       - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_SECRET_KEY_EXTRA
         generateValue: true
       - key: STORE_SETUP_TOKEN
         generateValue: true
